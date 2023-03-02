@@ -18,11 +18,11 @@ from django.urls import path
 from django.conf.urls.static import static
 from django.conf import settings
 
-from parser.views import ArticleFormView
+from parser.views import post_code
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('',ArticleFormView.as_view(),name="article"),
+    path('api/',post_code,name="post-code"),
 ]
 
 if settings.DEBUG:

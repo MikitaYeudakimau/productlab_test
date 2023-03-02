@@ -1,27 +1,20 @@
 import pandas as pd
 
-from django.shortcuts import render
-from django.views.generic import FormView
-from django.http import JsonResponse
+from rest_framework.views import Response
+from rest_framework.decorators import api_view, renderer_classes
+from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer, BrowsableAPIRenderer
 
 from .models import Product
-from .forms import ArticleForm
 
-class ArticleFormView(FormView):
-    template_name = 'parser/article.html'
-    form_class = ArticleForm
-    success_url = '/'
-
-    def form_valid(self, form):
-        code = form.cleaned_data['code']
-        if code:
-            Product.objects.create(code=code)
-        elif 'file' in self.request.FILES:
-            file = self.request.FILES['file']
-            df = pd.read_excel(file)
-            codes = df.iloc[:,0].to_list()
-            for code in codes:
-                Product.objects.create(code=code)
-        return super().form_valid(form)
-
+@api_view(http_method_names=['POST'])
+def post_code(request):
+    if 'file' in request.FILES:
+        file = request.FILES['file']
+        df = pd.read_excel(file)
+        codes = df.iloc[:, 0].tolist()
+        return Response({'codes': codes})
+    elif 'code' in request.POST:
+        code = request.POST['code']
+        return Response({'code': code})
+    return Response({'error': 'Invalid request'}, status=400)
 
