@@ -42,9 +42,24 @@ def post_article(request):
         file = request.FILES['file']
         df = pd.read_excel(file)
         articles = df.iloc[:, 0].tolist()
+        products = []
+        articles_copy = articles.copy()
+        for article in articles_copy:
+            try:
+                product = Product.objects.get(article=article)
+                articles.remove(article)
+                product_info = ProductInfo(article=product.article,
+                                           brand=product.brand,
+                                           title=product.title)
+                products.append(product_info.dict())
+            except ObjectDoesNotExist:
+                pass
         try:
             data = asyncio.run(get_product_data_from_file(articles))
-            return Response({'data': data}, status=200)
+            for elem in data:
+                Product.objects.create(**elem)
+            common_data=data+products
+            return Response({'data': common_data}, status=200)
         except:
             return Response({'error': 'Check articles'}, status=400)
     elif 'article' in request.POST:
