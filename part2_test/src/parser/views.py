@@ -3,6 +3,8 @@ import asyncio
 import pandas as pd
 from pydantic import BaseModel
 
+from django.core.exceptions import ObjectDoesNotExist
+
 from rest_framework.views import Response
 from rest_framework.decorators import api_view
 
@@ -48,8 +50,16 @@ def post_article(request):
     elif 'article' in request.POST:
         article = request.POST['article']
         try:
-            data = asyncio.run(get_product_data_from_code(article))
-            return Response({'data': data}, status=200)
-        except:
-            return Response({'error': 'Check article'}, status=400)
+            product = Product.objects.get(article=article)
+            product_info = ProductInfo(article=product.article,
+                                       brand=product.brand,
+                                       title=product.title)
+            return Response({'data': product_info.dict()}, status=200)
+        except ObjectDoesNotExist:
+            try:
+                data = asyncio.run(get_product_data_from_code(article))
+                Product.objects.create(**data)
+                return Response({'data': data}, status=200)
+            except:
+                return Response({'error': 'Check article'}, status=400)
     return Response({'error': 'Invalid request'}, status=400)

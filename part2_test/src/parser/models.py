@@ -1,7 +1,7 @@
 from django.db import models
 
 class Product(models.Model):
-    article = models.IntegerField()
+    article = models.IntegerField(unique=True)
     brand = models.CharField(max_length=100,blank=True)
     title = models.CharField(max_length=100,blank=True)
 
