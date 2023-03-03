@@ -1,20 +1,55 @@
+import aiohttp
+import asyncio
 import pandas as pd
+from pydantic import BaseModel
 
 from rest_framework.views import Response
-from rest_framework.decorators import api_view, renderer_classes
-from rest_framework.renderers import TemplateHTMLRenderer, JSONRenderer, BrowsableAPIRenderer
+from rest_framework.decorators import api_view
 
 from .models import Product
 
+
+class ProductInfo(BaseModel):
+    article: int
+    brand: str
+    title: str
+
+
+async def get_product_data_from_code(article):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+                f"https://basket-05.wb.ru/vol{str(article)[:3]}/part{str(article)[:5]}/{str(article)}/info/ru/card.json") as response:
+            data = await response.json()
+            brand = data.get("selling").get("brand_name")
+            title = data.get("imt_name")
+            return ProductInfo(article=article, brand=brand, title=title).dict()
+
+
+async def get_product_data_from_file(articles):
+    tasks = []
+    for article in articles:
+        task = asyncio.create_task(get_product_data_from_code(article))
+        tasks.append(task)
+    result = await asyncio.gather(*tasks)
+    return result
+
+
 @api_view(http_method_names=['POST'])
-def post_code(request):
+def post_article(request):
     if 'file' in request.FILES:
         file = request.FILES['file']
         df = pd.read_excel(file)
-        codes = df.iloc[:, 0].tolist()
-        return Response({'codes': codes})
-    elif 'code' in request.POST:
-        code = request.POST['code']
-        return Response({'code': code})
+        articles = df.iloc[:, 0].tolist()
+        try:
+            data = asyncio.run(get_product_data_from_file(articles))
+            return Response({'data': data}, status=200)
+        except:
+            return Response({'error': 'Check articles'}, status=400)
+    elif 'article' in request.POST:
+        article = request.POST['article']
+        try:
+            data = asyncio.run(get_product_data_from_code(article))
+            return Response({'data': data}, status=200)
+        except:
+            return Response({'error': 'Check article'}, status=400)
     return Response({'error': 'Invalid request'}, status=400)
-
